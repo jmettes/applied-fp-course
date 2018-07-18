@@ -1,0 +1,12 @@
+{
+    // "terminal.integrated.shell.linux": "/run/current-system/sw/bin/nix-shell",
+    // "haskell.hlint.executablePath": "/nix/store/15h3fq4znq8d16gg5prprdav2dkvwapz-ghc-8.2.2-with-packages/bin/hlint",
+    // "languageServerHaskell.useCustomHieWrapper": true,
+    // "languageServerHaskell.useCustomHieWrapperPath": "./hie.sh",
+    "languageServerHaskell.enableHIE": true,
+    "languageServerHaskell.hieExecutablePath": "/home/jonathan/.nix-profile/bin/hie-8.4",
+    "languageServerHaskell.hlintOn": true,
+    "languageServerHaskell.showTypeForSelection.onHover": true,
+    "languageServerHaskell.trace.server": "verbose"
+    // "languageServerHaskell.useHieWrapper": true,
+}

@@ -21,6 +21,7 @@ import           GHC.Generics              (Generic)
 import           Data.ByteString           (ByteString)
 import           Data.Text                 (Text)
 
+import           Data.Char                 (isLower, toLower)
 import           Data.List                 (stripPrefix)
 import           Data.Maybe                (fromMaybe)
 
@@ -30,7 +31,7 @@ import qualified Data.Aeson.Types          as A
 
 import           Data.Time                 (UTCTime)
 
-import           Level04.DB.Types          (DBComment)
+import           Level04.DB.Types          (DBComment, dbcommentId, dbcommentTopic, dbcommentBody, dbcommentTime)
 
 -- Notice how we've moved these types into their own modules. It's cheap and
 -- easy to add modules to carve out components in a Haskell application. So
@@ -38,7 +39,7 @@ import           Level04.DB.Types          (DBComment)
 -- distinct functionality, or you want to carve out a particular piece of code,
 -- just spin up another module.
 import           Level04.Types.CommentText (CommentText, getCommentText, mkCommentText)
-import           Level04.Types.Error       (Error (EmptyCommentText, EmptyTopic, UnknownRoute))
+import           Level04.Types.Error       (Error (EmptyCommentText, EmptyTopic, UnknownRoute, ConversionError))
 import           Level04.Types.Topic       (Topic, getTopic, mkTopic)
 
 
@@ -68,11 +69,13 @@ data Comment = Comment
 -- "topic"
 -- >>> modFieldLabel ""
 -- ""
-modFieldLabel
-  :: String
-  -> String
-modFieldLabel =
-  error "modFieldLabel not implemented"
+modFieldLabel :: String -> String
+modFieldLabel s =
+  let suffix = dropWhile isLower s in
+    modFieldLabel' suffix
+  where
+    modFieldLabel' "" = s
+    modFieldLabel' (x:xs) = toLower x : xs
 
 instance ToJSON Comment where
   -- This is one place where we can take advantage of our `Generic` instance.
@@ -97,8 +100,20 @@ instance ToJSON Comment where
 fromDbComment
   :: DBComment
   -> Either Error Comment
-fromDbComment =
-  error "fromDbComment not yet implemented"
+fromDbComment dbc =
+  let
+    cid = CommentId $ dbcommentId dbc
+    dbt = dbcommentTime dbc
+  in
+    case (mkTopic $ dbcommentTopic dbc, mkCommentText $ dbcommentBody dbc) of
+      (Right topic, Right comment) -> Right $ Comment cid topic comment dbt
+      (_, _) -> Left ConversionError
+
+    -- do
+  --   topic <- mkTopic $ dbcommentTopic dbc
+  --   comment <- mkCommentText $ dbcommentBody dbc
+  --   Right $ Comment (CommentId $ dbcommentId dbc) topic comment (dbcommentTime dbc)
+
 
 data RqType
   = AddRq Topic CommentText

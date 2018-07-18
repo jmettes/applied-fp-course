@@ -43,7 +43,17 @@ unitTests = do
       -- Don't worry if you don't get all of these done. :)
 
       -- 1) The '<topic>/add' route will respond with an error when given an empty comment
+
+      describe "Add Route" $ do
+        it "Should return 'Empty Comment' message and 400 status" $
+          post "/cool/add" "" `shouldRespondWith` "Empty Comment" {matchStatus = 400}
+
       -- 2) The '<topic>/view' route will respond correctly when given a topic
+
+      describe "View Route" $ do
+        it "Should return a 'not implemented' message and 200 status" $
+          get "/cool/view" `shouldRespondWith` "View Request not implemented"
+
       -- 3) The '<topic>/view' route will respond with an error when given an empty topic
       -- 4) A gibberish route will return a 404
 

@@ -11,4 +11,4 @@ let
   drv = haskellPackages.callPackage ./applied-fp-course.nix {};
 
 in
-  if pkgs.lib.inNixShell then drv.env else drv
+  drv
