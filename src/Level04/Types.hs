@@ -101,13 +101,70 @@ fromDbComment
   :: DBComment
   -> Either Error Comment
 fromDbComment dbc =
-  let
-    cid = CommentId $ dbcommentId dbc
-    dbt = dbcommentTime dbc
-  in
-    case (mkTopic $ dbcommentTopic dbc, mkCommentText $ dbcommentBody dbc) of
-      (Right topic, Right comment) -> Right $ Comment cid topic comment dbt
-      (_, _) -> Left ConversionError
+  Comment (CommentId $ dbcommentId dbc)
+  <$> mkTopic (dbcommentTopic dbc)
+  <*> mkCommentText (dbcommentBody dbc)
+  <*> (pure $ dbcommentTime dbc)
+
+  -- WHY THIS WORKS:
+  -- ===============
+  -- (the way i use the words 'functor', 'applicative', etc. might be confused
+  -- but i kind of just follow the type signatures)
+
+  -- :t (+)
+  -- (+) :: Num a => a -> a -> a
+  -- we want to fill both sides, plus make it a list, i.e. something like:
+  -- ... :: Num b => [b]
+
+  -- :t (+) <$> [1]
+  -- (+) <$> [1] :: Num a => [a -> a]
+  -- this lifts the plus into the list, and fills one argument
+
+  -- we can see this is the case, because:
+  -- :t (<$>)
+  -- (<$>) :: Functor f => (a -> b) -> f a -> f b
+  -- it takes a function (+), and a functor [1], and fills the first function argument (application)
+  -- that is, it was (+) :: a -> a -> a, then became [a -> a]
+
+  -- now we want to fill the last argument, in its lifted list form
+  -- say we only had a non-list value 2
+  -- (+) <$> [1] <*> [2]
+  -- [3]
+
+  -- what does <*> do?
+  -- [(+1)] <*> [2]
+  -- [3]
+  -- :t (<*>)
+  -- (<*>) :: Applicative f => f (a -> b) -> f a -> f b
+  -- it takes a [(+1)], which is f (a -> b), and [2] which is fa
+  -- it then returns [3], which is f b
+
+  -- what if we don't have a [2], but instead just a value 2
+  -- we can use pure:
+  -- [(+1)] <*> pure 2 :: Num b => [b]
+  -- pure takes a non-lifted value, and lifts it to an applicative form
+  -- :t pure
+  -- pure :: Applicative f => a -> f a
+  -- :t pure 2
+  -- pure 2 :: (Applicative f, Num a) => f a
+  -- it lifts 2 into an applicative form.
+  -- here f is arbitrary, it is ready to be applied to another functor
+
+  -- so <*> is basically fmap, but the function is also a functor
+  -- :t (<*>)
+  -- (<*>) :: Applicative f => f (a -> b) -> f a -> f b
+  -- :t (<$>)
+  -- (<$>) :: Functor f => (a -> b) -> f a -> f b
+  
+
+
+  -- let
+  --   cid = CommentId $ dbcommentId dbc
+  --   dbt = dbcommentTime dbc
+  -- in
+  --   case (mkTopic $ dbcommentTopic dbc, mkCommentText $ dbcommentBody dbc) of
+  --     (Right topic, Right comment) -> Right $ Comment cid topic comment dbt
+  --     (_, _) -> Left ConversionError
 
     -- do
   --   topic <- mkTopic $ dbcommentTopic dbc

@@ -32,10 +32,11 @@ import qualified Data.Aeson                         as A
 
 import           Database.SQLite.SimpleErrors.Types (SQLiteResponse)
 
-import           Level04.Conf                       (Conf, firstAppConfig)
+import           Level04.Conf                       (Conf, firstAppConfig, dbFilePath)
 import qualified Level04.DB                         as DB
+import           Level04.DB                         (initDB)
 import           Level04.Types                      (ContentType (JSON, PlainText),
-                                                     Error (EmptyCommentText, EmptyTopic, UnknownRoute),
+                                                     Error (EmptyCommentText, EmptyTopic, UnknownRoute, ConversionError),
                                                      RqType (AddRq, ListRq, ViewRq),
                                                      mkCommentText, mkTopic,
                                                      renderContentType)
@@ -48,7 +49,11 @@ data StartUpError
   deriving Show
 
 runApp :: IO ()
-runApp = error "runApp needs re-implementing"
+runApp = do
+  db <- prepareAppReqs
+  case db of
+    Right db_ -> run 3000 (app db_)
+    Left _ -> pure ()
 
 -- We need to complete the following steps to prepare our app requirements:
 --
@@ -59,8 +64,13 @@ runApp = error "runApp needs re-implementing"
 --
 prepareAppReqs
   :: IO ( Either StartUpError DB.FirstAppDB )
-prepareAppReqs =
-  error "prepareAppReqs not implemented"
+prepareAppReqs = 
+  do
+    db <- initDB $ dbFilePath firstAppConfig
+    case db of
+      Left e -> pure $ Left $ DbInitErr e
+      Right fdb -> pure $ Right fdb
+  -- error "prepareAppReqs not implemented"
 
 -- | Some helper functions to make our lives a little more DRY.
 mkResponse
@@ -128,12 +138,55 @@ handleRequest
   :: DB.FirstAppDB
   -> RqType
   -> IO (Either Error Response)
-handleRequest _db (AddRq _ _) =
-  (resp200 PlainText "Success" <$) <$> error "AddRq handler not implemented"
-handleRequest _db (ViewRq _)  =
-  error "ViewRq handler not implemented"
+handleRequest _db (AddRq t c) =
+  (resp200 PlainText "Success" <$) <$> DB.addCommentToTopic _db t c
+  -- error "AddRq handler not implemented"
+
+  -- what is <$, and what does it do?
+
+  -- :t (<$)
+  -- (<$) :: Functor f => a -> f b -> f a
+
+  -- it takes a value 'a', and a functor with 'b',
+  --    it throws 'b' away, and reuses the functor
+  -- for example:
+  -- 1 <$ Right 'c'
+  -- Right 1
+  
+  -- similarly to const, it keeps left value
+  -- const 1 (Right 'c')
+  -- 1
+
+  -- if we add fmap:
+  -- (fmap . const) 1 (Right 'c')
+  -- Right 1
+  -- so (<$) == (fmap . const)
+
+  -- interestingly:
+  -- 1 <$ (Left 'c')
+  -- Left 'c'
+  -- it picked 'c' instead of 1!
+  -- it also picked up the Either functor
+
+  -- so now what's all this (<$) together with <$> business then?
+  -- this is needed for nested functors
+  -- fmap lifts a function onto a functor
+
+  -- (1 <$) (Right 3)
+  -- Right 1
+  -- that works. what about:
+  -- (1 <$) (Right (Right 3))
+  -- Right 1
+  -- what if we wanted (Right (Right 1)) instead?
+
+  -- fmap!
+  -- (1 <$) <$> (Right (Right 3))
+  -- Right (Right 1)
+
+handleRequest _db (ViewRq t)  =
+  (fmap . fmap) resp200Json (DB.getComments _db t)
 handleRequest _db ListRq      =
-  error "ListRq handler not implemented"
+  (fmap . fmap) resp200Json (DB.getTopics _db)
 
 mkRequest
   :: Request
@@ -177,3 +230,5 @@ mkErrorResponse EmptyCommentText =
   resp400 PlainText "Empty Comment"
 mkErrorResponse EmptyTopic =
   resp400 PlainText "Empty Topic"
+mkErrorResponse ConversionError =
+  resp400 PlainText "Converison Error"

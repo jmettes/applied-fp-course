@@ -36,4 +36,5 @@ instance FromRow DBComment where
 -- lol :: Int -> Int -> Int -> Int
 -- lol a b c = undefined
 -- x = lol <$> Just 1 <*> Just 2
+
 -- Now move to ``src/Level04/Types.hs``
